@@ -2,6 +2,10 @@ import cv2
 import tkinter
 from tkinter import filedialog
 from math import sin, cos, radians
+try:
+    import Queue as Q  # ver. < 3.0
+except ImportError:
+    import queue as Q
 
 
 def black(y_test, x_test, variable):
@@ -33,8 +37,28 @@ def pixels_analysis(point_1, point_2):
         total_pixels += 1
         if color[0] == color[1] == color[2] == 0:
             black_pixels += 1
-    return [(black_pixels), point_1, point_2]
+    if black_pixels<1 or (black_pixels+1)/(total_pixels+1)<0.001:
+       return [-1, point_1, point_2] 
+    return [1/((black_pixels+1)/(total_pixels+1)), point_1, point_2]
 
+# Escolha do melhor primeiro pixel 
+def get_best(nail_positions):
+    rate_list= Q.PriorityQueue()
+
+    print('Encontrando melhor:')
+    bigger = [0,0,0]
+    for j in range(0, nail_number):
+        actual_point= nail_positions[j]
+        for i in range(j+1, nail_number):
+            point_analysis = nail_positions[i]
+            current_test = pixels_analysis(actual_point, point_analysis)
+            if(current_test[0]!=(-1)):
+                rate_list.put(current_test)
+            if current_test[0] > bigger[0]:
+                bigger = [current_test[0], current_test[1], current_test[2]]
+    print('Encontrado')
+
+    return rate_list
 
 def clean_image():
     for y_axis in range(0, image.shape[0]):
@@ -43,7 +67,7 @@ def clean_image():
             cleaned.itemset(y_axis, x_axis, 1, 255)
             cleaned.itemset(y_axis, x_axis, 2, 255)
 
-
+# Inicialização
 root = tkinter.Tk()
 root.withdraw()
 file_path = filedialog.askopenfilename()
@@ -54,6 +78,8 @@ size = image.shape
 # (Y,X)
 center = [int(size[1] / 2), int(size[0] / 2)]
 nail_number = int(input('nails number: '))
+lines_number = int(input('lines number: '))
+
 angle = 360 / nail_number
 nail_positions = []
 for i in range(0, nail_number):
@@ -61,31 +87,43 @@ for i in range(0, nail_number):
     y = int(center[1] + ((center[0] - 1) * cos(-(radians(angle * i)))))
     positions = [y, x]
     nail_positions.append(positions)
+
+ 
 actual_point = nail_positions[0]
+rate_list = get_best(nail_positions)
 segments = [0]
 lines = 0
+
+
 ctn = True
-while ctn:
-    bigger = [0, nail_positions[0], nail_positions[0]]
-    for i in range(0, nail_number):
-        point_analysis = nail_positions[i]
-        a = pixels_analysis(actual_point, point_analysis)
-        if a[0] > bigger[0]:
-            bigger = [a[0], a[1], a[2]]
-    actual_point = bigger[2]
+while ctn:  
+    changes=0
+    point= rate_list.get()
+    refresh_point= pixels_analysis(point[1], point[2])
+    while(point[0]<refresh_point[0]):
+        rate_list.put(refresh_point)
+        changes+=1
+        point= rate_list.get()
+        refresh_point= pixels_analysis(point[1], point[2])
+    bigger=refresh_point
+    # Atualização da linha
     line = [bigger[1], bigger[2]]
     index = nail_positions.index(bigger[2])
+    actual_point = bigger[2]
     segments.append(index)
     cv2.line(image, (line[1][0], line[1][1]), (line[0][0], line[0][1]), (255, 255, 255), 1)
     cv2.line(cleaned, (line[1][0], line[1][1]), (line[0][0], line[0][1]), (0, 0, 0), 1)
-    image_output_1 = cv2.resize(image, (700, 700))
+    # image_output_1 = cv2.resize(image, (700, 700))
     image_output_2 = cv2.resize(cleaned, (700, 700))
     # cv2.imshow('output_1', image_output_1)
     cv2.imshow('output_2', image_output_2)
     cv2.waitKey(10)
+    # print('.')
     lines += 1
-    if bigger[0] == 0 or lines == 1800:
+    if  lines >= lines_number:
         ctn=False
+    if (changes>0):
+        print(changes) 
 print('Finish')
 image_output_2 = cv2.resize(cleaned, (700, 700))
 cv2.imshow('output', image_output_2)
