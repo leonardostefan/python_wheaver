@@ -1,3 +1,11 @@
+Modificações do códido do Julio Bandeira
+https://github.com/julio-bandeira/pyhton_weaver
+
+Mudanças:
+  v2: Alteração do pixels_analysis para retornara o valor relativo pixels  da linha e não absoluto
+  v3: Ao inves de continuar com o "prego" anterior, muda para um conjunto totalmente diferente de pregos, sempre escolhendo a melhor linha atual para se modificar
+
+
 # pyhton_weaver
 Forme imagens por meio de linhas
 
